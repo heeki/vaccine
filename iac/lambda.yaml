@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Vaccination availability
+Transform: AWS::Serverless-2016-10-31
+Globals:
+  Function:
+    Runtime: python3.8
+    Timeout: 60
+Parameters:
+  emailAddress:
+    Type: String
+Resources:
+  Notification:
+    Type: AWS::SNS::Topic
+    Properties:
+      FifoTopic: false
+      Subscription:
+        - Endpoint: !Ref emailAddress
+          Protocol: email
+  FnExecRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: '/service-role/'
+      Policies:
+        - PolicyName: cloudwatch-logs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                Resource: 'arn:aws:logs:*:*:log-group:*:*'
+        - PolicyName: sns
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref Notification
+  Fn:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../src
+      Handler: fn.handler
+      Role: !GetAtt FnExecRole.Arn
+      Environment:
+        Variables:
+          TOPIC: !Ref Notification
+      Layers:
+        - !Sub 'arn:aws:lambda:${AWS::Region}:580247275435:layer:LambdaInsightsExtension:2'
+  FnLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${Fn}"
+      RetentionInDays: 7
+Outputs:
+  outFn:
+    Value: !Ref Fn

@@ -1,0 +1,17 @@
+{
+    "cvs": {
+       "url": "https://www.cvs.com/immunizations/covid-19-vaccine.vaccine-status.NJ.json?vaccineinfo",
+       "headers": {
+          "referer": "https://www.cvs.com/immunizations/covid-19-vaccine"
+       }
+    },
+    "riteaid": {
+        "url": "https://www.riteaid.com/services/ext/v2/vaccine/checkSlots?storeNumber=",
+        "headers": {},
+        "stores": {
+           "00000": "Store name or address",
+           "00001": "Store name or address",
+           "00002": "Store name or address"
+        }
+     }
+ }
