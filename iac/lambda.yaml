@@ -18,6 +18,16 @@ Resources:
       Subscription:
         - Endpoint: !Ref emailAddress
           Protocol: email
+  Table:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: user
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: user
+          KeyType: HASH
   FnExecRole:
     Type: AWS::IAM::Role
     Properties:
@@ -51,6 +61,21 @@ Resources:
                 Action:
                   - sns:Publish
                 Resource: !Ref Notification
+        - PolicyName: dynamodb
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:BatchGetItem
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:UpdateItem
+                Resource: !GetAtt Table.Arn
   Fn:
     Type: AWS::Serverless::Function
     Properties:
@@ -67,32 +92,16 @@ Resources:
     Properties:
       LogGroupName: !Sub "/aws/lambda/${Fn}"
       RetentionInDays: 7
-  SchedulerExecRole:
-    Type: AWS::IAM::Role
+  FnPermission:
+    Type: AWS::Lambda::Permission
     Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - events.amazonaws.com
-            Action:
-              - sts:AssumeRole
-      Path: '/service-role/'
-      Policies:
-        - PolicyName: lambda
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - lambda:Invoke
-                Resource: !GetAtt Fn.Arn
+      FunctionName: !GetAtt Fn.Arn
+      Principal: events.amazonaws.com
+      Action: lambda:InvokeFunction
+      SourceArn: !GetAtt Scheduler.Arn
   Scheduler:
     Type: AWS::Events::Rule
     Properties:
-      RoleArn: !GetAtt SchedulerExecRole.Arn
       ScheduleExpression: cron(0/10 * * * ? *)
       State: !Ref isEnabled
       Targets:
