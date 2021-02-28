@@ -72,20 +72,30 @@ class Availability:
         else:
             sys.exit(1)
 
-    def notify(self, notifications):
+    def send_sns(self, user, subject, message):
+        if "AWS_LAMBDA_FUNCTION_NAME" in os.environ:
+            client_sns.publish(
+                TopicArn=topic,
+                Subject=subject,
+                Message=message,
+                MessageAttributes={
+                    "user": {
+                        "DataType": "String",
+                        "StringValue": user
+                    }
+                }
+            )
+
+    def notify(self, user, notifications):
+        subject = "Vaccination availability alert"
         if len(notifications["availability_at"]) == 0:
             message = "No vaccine availability at {}.".format(notifications["store"])
+            # self.send_sns(user, subject, message)
         else:
-            subject = "Vaccination availability alert"
             message = ""
             for notification in notifications["availability_at"]:
                 message += "Vaccine availability for {} at {}.\n".format(notification["store"], notification["location"])
-            if "AWS_LAMBDA_FUNCTION_NAME" in os.environ:
-                client_sns.publish(
-                    TopicArn=topic,
-                    Subject=subject,
-                    Message=message
-                )
+            self.send_sns(user, subject, message)
         print(message)
 
     def check_cvs(self, user):
@@ -103,7 +113,7 @@ class Availability:
             "store": "CVS",
             "availability_at": locations
         }
-        self.notify(output)
+        self.notify(user, output)
         return output
 
     def check_riteaid(self, user):
@@ -123,7 +133,7 @@ class Availability:
             "store": "RiteAid",
             "availability_at": locations
         }
-        self.notify(output)
+        self.notify(user, output)
         return output
 
     def check_stores(self, user):

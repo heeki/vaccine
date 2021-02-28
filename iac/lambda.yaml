@@ -15,9 +15,6 @@ Resources:
     Type: AWS::SNS::Topic
     Properties:
       FifoTopic: false
-      Subscription:
-        - Endpoint: !Ref emailAddress
-          Protocol: email
   Table:
     Type: AWS::DynamoDB::Table
     Properties:
