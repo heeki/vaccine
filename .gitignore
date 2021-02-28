@@ -1,3 +1,4 @@
+build/
 etc/config.json
 etc/environment.sh
 etc/environment.json
@@ -5,4 +6,5 @@ etc/event.json
 etc/private.json
 iac/*_output.yaml
 tmp/
+build.toml
 notes.md

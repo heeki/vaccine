@@ -1,6 +1,10 @@
 include etc/environment.sh
 
 sam: sam.package sam.deploy
+sam.b: sam.build sam.deploy
+sam.build:
+	sam build --profile ${PROFILE} --template ${TEMPLATE} --parameter-overrides ${PARAMS} --build-dir build --manifest requirements.txt --use-container
+	sam package -t build/template.yaml --output-template-file ${OUTPUT} --s3-bucket ${S3BUCKET}
 sam.package:
 	sam package -t ${TEMPLATE} --output-template-file ${OUTPUT} --s3-bucket ${S3BUCKET}
 sam.deploy:

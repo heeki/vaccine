@@ -1,5 +1,7 @@
 import json
 from availability import Availability
+from aws_xray_sdk.core import xray_recorder
+from aws_xray_sdk.core import patch_all
 
 # helper functions
 def build_response(code, body):
@@ -17,6 +19,10 @@ def build_response(code, body):
     }
     return response
 
+# function: initialization
+def initialization():
+    patch_all()
+
 # function: lambda invoker handler
 def handler(event, context):
     av = Availability()
@@ -25,3 +31,5 @@ def handler(event, context):
     for user in av.get_users():
         payload.append(av.check_stores(user))
     return payload
+
+initialization()

@@ -50,6 +50,23 @@ Resources:
                   - logs:PutLogEvents
                   - logs:DescribeLogStreams
                 Resource: 'arn:aws:logs:*:*:log-group:*:*'
+        - PolicyName: cloudwatch-insights-1
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                Resource: '*'
+        - PolicyName: cloudwatch-insights-2
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: 'arn:aws:logs:*:*:log-group:/aws/lambda-insights:*'
         - PolicyName: sns
           PolicyDocument:
             Version: '2012-10-17'
@@ -73,6 +90,18 @@ Resources:
                   - dynamodb:Scan
                   - dynamodb:UpdateItem
                 Resource: !GetAtt Table.Arn
+        - PolicyName: xray
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                  - xray:GetSamplingRules
+                  - xray:GetSamplingTargets
+                  - xray:GetSamplingStatisticSummaries
+                Resource: '*'
   Fn:
     Type: AWS::Serverless::Function
     Properties:
@@ -84,7 +113,8 @@ Resources:
           TOPIC: !Ref Notification
           TABLE: !Ref Table
       Layers:
-        - !Sub 'arn:aws:lambda:${AWS::Region}:580247275435:layer:LambdaInsightsExtension:2'
+        - !Sub 'arn:aws:lambda:${AWS::Region}:580247275435:layer:LambdaInsightsExtension:12'
+      Tracing: Active
   FnLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -100,7 +130,7 @@ Resources:
   Scheduler:
     Type: AWS::Events::Rule
     Properties:
-      ScheduleExpression: cron(0/10 * * * ? *)
+      ScheduleExpression: cron(0/2 * * * ? *)
       State: !Ref isEnabled
       Targets:
         - Arn: !GetAtt Fn.Arn
