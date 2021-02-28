@@ -32,7 +32,7 @@ class Availability:
 
    def notify(self, notifications):
       if len(notifications["availability_at"]) == 0:
-         message = "No vaccine availability for {}.".format(notifications["store"])
+         message = "No vaccine availability at {}.".format(notifications["store"])
       else:
          subject = "Vaccination availability alert"
          message = ""
@@ -47,9 +47,11 @@ class Availability:
       print(message)
       return notifications
 
-   def check_cvs(self):
+   def check_cvs(self, user):
       locations = []
-      response = self.get_availability(self.config["cvs"]["url"], self.config["cvs"]["headers"])
+      baseurl = self.config["cvs"]["url"]
+      headers = self.config["cvs"]["headers"]
+      response = self.get_availability(baseurl, headers)
       for store in response["responsePayloadData"]["data"]["NJ"]:
          if (store["status"] != "Fully Booked"): 
             locations.append(store["city"])
@@ -62,16 +64,19 @@ class Availability:
       }
       return output
 
-   def check_riteaid(self):
+   def check_riteaid(self, user):
       locations = []
-      for store in self.config["riteaid"]["stores"]:
-         url = "{}{}".format(self.config["riteaid"]["url"], store)
-         response = self.get_availability(url, self.config["riteaid"]["headers"])
+      baseurl = self.config["riteaid"]["url"]
+      headers = self.config["riteaid"]["headers"]
+      for store in self.config["user_preferences"][user]["riteaid"]:
+         url = "{}{}".format(baseurl, store)
+         location = self.config["user_preferences"][user]["riteaid"][store]
+         response = self.get_availability(url, headers)
          if (response["Data"]["slots"]["1"] or response["Data"]["slots"]["2"]):
-            locations.append(store["city"])
-            print("(RiteAid) Vaccine availability at {}".format(self.config["riteaid"]["stores"][store]))
+            locations.append(location)
+            print("(RiteAid) Vaccine availability at {}".format(location))
          elif self.debug:
-            print("(RiteAid) No vaccine availability at {}".format(self.config["riteaid"]["stores"][store]))
+            print("(RiteAid) No vaccine availability at {}".format(location))
       output = {
          "store": "RiteAid",
          "availability_at": locations
@@ -81,14 +86,17 @@ class Availability:
 def main():
    ap = argparse.ArgumentParser()
    ap.add_argument("--config", required=True, help="path to application configurations")
+   ap.add_argument("--user", required=True, help="user from config.json")
    args = ap.parse_args()
 
    with open(args.config) as f:
       config = json.load(f)
 
    av = Availability(config)
-   av.notify(av.check_cvs())
-   av.notify(av.check_riteaid())
+   for user in [args.user]:
+      print("Performing availability checks for {}.".format(user))
+      av.notify(av.check_cvs(user))
+      av.notify(av.check_riteaid(user))
 
 if __name__ == "__main__":
    main()
