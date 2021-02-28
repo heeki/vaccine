@@ -19,8 +19,9 @@ def build_response(code, body):
 
 # function: lambda invoker handler
 def handler(event, context):
-    a = Availability(event)
+    av = Availability()
+    av.pull_config()
     payload = []
-    payload.append(a.notify(a.check_cvs()))
-    payload.append(a.notify(a.check_riteaid()))
+    for user in av.get_users():
+        payload.append(av.check_stores(user))
     return payload

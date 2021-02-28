@@ -85,6 +85,7 @@ Resources:
       Environment:
         Variables:
           TOPIC: !Ref Notification
+          TABLE: !Ref Table
       Layers:
         - !Sub 'arn:aws:lambda:${AWS::Region}:580247275435:layer:LambdaInsightsExtension:2'
   FnLogGroup:
