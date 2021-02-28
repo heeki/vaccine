@@ -8,6 +8,8 @@ Globals:
 Parameters:
   emailAddress:
     Type: String
+  isEnabled:
+    Type: String
 Resources:
   Notification:
     Type: AWS::SNS::Topic
@@ -65,6 +67,37 @@ Resources:
     Properties:
       LogGroupName: !Sub "/aws/lambda/${Fn}"
       RetentionInDays: 7
+  SchedulerExecRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - events.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: '/service-role/'
+      Policies:
+        - PolicyName: lambda
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:Invoke
+                Resource: !GetAtt Fn.Arn
+  Scheduler:
+    Type: AWS::Events::Rule
+    Properties:
+      RoleArn: !GetAtt SchedulerExecRole.Arn
+      ScheduleExpression: cron(0/10 * * * ? *)
+      State: !Ref isEnabled
+      Targets:
+        - Arn: !GetAtt Fn.Arn
+          Id: fn_vaccine_availability
 Outputs:
   outFn:
     Value: !Ref Fn

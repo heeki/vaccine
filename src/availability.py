@@ -10,8 +10,9 @@ if "AWS_LAMBDA_FUNCTION_NAME" in os.environ:
    client = boto3.client("sns")
 
 class Availability:
-   def __init__(self, config):
+   def __init__(self, config, debug=False):
       self.config = config
+      self.debug = debug
 
    def get_availability(self, url, headers):
       request = urllib.request.Request(url)
@@ -52,6 +53,9 @@ class Availability:
       for store in response["responsePayloadData"]["data"]["NJ"]:
          if (store["status"] != "Fully Booked"): 
             locations.append(store["city"])
+            print("(CVS) Vaccine availability at {}".format(store["city"]))
+         elif self.debug:
+            print("(CVS) No vaccine availability at {}".format(store["city"]))
       output = {
          "store": "CVS",
          "availability_at": locations
@@ -65,6 +69,9 @@ class Availability:
          response = self.get_availability(url, self.config["riteaid"]["headers"])
          if (response["Data"]["slots"]["1"] or response["Data"]["slots"]["2"]):
             locations.append(store["city"])
+            print("(RiteAid) Vaccine availability at {}".format(self.config["riteaid"]["stores"][store]))
+         elif self.debug:
+            print("(RiteAid) No vaccine availability at {}".format(self.config["riteaid"]["stores"][store]))
       output = {
          "store": "RiteAid",
          "availability_at": locations

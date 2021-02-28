@@ -5,3 +5,4 @@ etc/event.json
 etc/private.json
 iac/*_output.yaml
 tmp/
+notes.md
