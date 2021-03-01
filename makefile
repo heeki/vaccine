@@ -10,7 +10,9 @@ sam.package:
 sam.deploy:
 	sam deploy -t ${OUTPUT} --stack-name ${STACK} --parameter-overrides ${PARAMS} --capabilities CAPABILITY_NAMED_IAM
 sam.local.invoke:
-	sam local invoke -t ${TEMPLATE} --parameter-overrides ${PARAMS} --env-vars etc/environment.json -e etc/event.json Fn | jq
+	sam local invoke --profile ${PROFILE} -t ${TEMPLATE} --parameter-overrides ${PARAMS} --env-vars etc/environment.json -e etc/event.json Fn | jq
+sam.local.invoke.b:
+	sam local invoke --profile ${PROFILE} -t build/template.yaml --parameter-overrides ${PARAMS} --env-vars etc/environment.json -e etc/event.json Fn --debug | jq
 sam.local.api:
 	sam local start-api -t ${TEMPLATE} --parameter-overrides ${PARAMS}
 lambda.invoke:

@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import urllib.request
+from datetime import datetime
 
 if "AWS_LAMBDA_FUNCTION_NAME" in os.environ:
     topic = os.environ["TOPIC"]
@@ -85,6 +86,44 @@ class Availability:
                     }
                 }
             )
+
+    def put_emf(self, context, user, locations):
+        counts = {
+            "cvs": 0,
+            "riteaid": 0
+        }
+        for location in locations:
+            if location["store"] == "CVS":
+                counts["cvs"] = len(location["availability_at"])
+            elif location["store"] == "RiteAid":
+                counts["riteaid"] = len(location["availability_at"])
+        message = {
+            "_aws": {
+                "Timestamp": int(datetime.now().timestamp()*1000),
+                "CloudWatchMetrics": [
+                    {
+                        "Namespace": "VaccineAvailability",
+                        "Dimensions": [["user"]],
+                        "Metrics": [
+                            {
+                                "Name": "cvs",
+                                "Unit": "Count"
+                            },
+                            {
+                                "Name": "riteaid",
+                                "Unit": "Count"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "functionVersion": context.function_version,
+            "requestId": context.aws_request_id,
+            "user": user,
+            "cvs": counts["cvs"],
+            "riteaid": counts["riteaid"]
+        }
+        print(json.dumps(message))
 
     def notify(self, user, notifications):
         subject = "Vaccination availability alert"

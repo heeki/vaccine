@@ -29,7 +29,9 @@ def handler(event, context):
     av.pull_config()
     payload = []
     for user in av.get_users():
-        payload.append(av.check_stores(user))
+        poll = av.check_stores(user)
+        av.put_emf(context, user, poll["availability"])
+        payload.append(poll)
     return payload
 
 initialization()

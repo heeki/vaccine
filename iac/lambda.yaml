@@ -4,7 +4,7 @@ Transform: AWS::Serverless-2016-10-31
 Globals:
   Function:
     Runtime: python3.8
-    Timeout: 60
+    Timeout: 10
 Parameters:
   emailAddress:
     Type: String
@@ -113,7 +113,7 @@ Resources:
           TOPIC: !Ref Notification
           TABLE: !Ref Table
       Layers:
-        - !Sub 'arn:aws:lambda:${AWS::Region}:580247275435:layer:LambdaInsightsExtension:12'
+        - !Sub 'arn:aws:lambda:${AWS::Region}:580247275435:layer:LambdaInsightsExtension:14'
       Tracing: Active
   FnLogGroup:
     Type: AWS::Logs::LogGroup
