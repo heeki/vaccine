@@ -5,6 +5,7 @@ etc/environment.json
 etc/event.json
 etc/private.json
 iac/*_output.yaml
+src/__pycache__/
 tmp/
 build.toml
 notes.md

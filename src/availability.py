@@ -131,11 +131,10 @@ class Availability:
             message = "No vaccine availability at {}.".format(notifications["store"])
             # self.send_sns(user, subject, message)
         else:
-            message = ""
-            for location in notifications["availability_at"]:
-                message += "Vaccine availability for {} at {}.\n".format(notifications["store"], location)
+            message = "\n".join(["Vaccine availability for {} at {}.".format(notifications["store"], location) for location in notifications["availability_at"]])
             self.send_sns(user, subject, message)
         print(message)
+        return message
 
     def check_cvs(self, user):
         locations = []
