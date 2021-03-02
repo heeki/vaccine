@@ -132,8 +132,8 @@ class Availability:
             # self.send_sns(user, subject, message)
         else:
             message = ""
-            for notification in notifications["availability_at"]:
-                message += "Vaccine availability for {} at {}.\n".format(notification["store"], notification["location"])
+            for location in notifications["availability_at"]:
+                message += "Vaccine availability for {} at {}.\n".format(notifications["store"], location)
             self.send_sns(user, subject, message)
         print(message)
 
