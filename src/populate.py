@@ -25,7 +25,8 @@ class Store:
             TableName=self.table,
             Item = {
                 "user": { "S": user },
-                "preferences": { "S": json.dumps(self.config["user_preferences"][user]) }
+                "preferences": { "S": json.dumps(self.config["user_preferences"][user]) },
+                "ttl_in_seconds": { "N": str(self.config["user_preferences"][user]["ttl_in_seconds"]) }
             }
         )
         print(json.dumps(response))

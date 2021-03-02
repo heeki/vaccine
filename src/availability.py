@@ -16,14 +16,27 @@ class Availability:
             "notification_ttl": {},
             "ttl_in_seconds": 600
         }
-        self.topic = os.environ["TOPIC"]
-        self.table = os.environ["TABLE"]
+        if "TOPIC" in os.environ:
+            self.topic = os.environ["TOPIC"]
+        if "TABLE" in os.environ:
+            self.table = os.environ["TABLE"]
         self.client_sns = boto3.client("sns")
         self.client_ddb = boto3.client("dynamodb")
+
+    # internal data
+    def get_users(self):
+        return self.config["user_preferences"].keys()
 
     def set_config(self, config):
         self.config = config
 
+    def set_notification_ttl(self, user, store, ts):
+        if user not in self.config["notification_ttl"]:
+            self.config["notification_ttl"][user] = {}
+        self.config["notification_ttl"][user][store] = ts.isoformat()
+        self.put_user(user)
+
+    # data persistence
     def pull_store(self, store):
         response = self.client_ddb.get_item(
             TableName=self.table,
@@ -56,77 +69,6 @@ class Availability:
         self.pull_store("riteaid")
         self.pull_users()
 
-    def get_users(self):
-        return self.config["user_preferences"].keys()
-
-    def get_availability(self, url, headers):
-        request = urllib.request.Request(url)
-        request.add_header("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.192 Safari/537.36")
-        for header in headers:
-            request.add_header(header, headers[header])
-        try:
-            response = urllib.request.urlopen(request)
-        except urllib.error.HTTPError as e:
-            print(e)
-            sys.exit(1)
-
-        if response.status == 200:
-            return json.loads(response.read().decode('utf-8'))
-        else:
-            sys.exit(1)
-
-    def send_sns(self, user, subject, message):
-        if "AWS_LAMBDA_FUNCTION_NAME" in os.environ:
-            self.client_sns.publish(
-                TopicArn=self.topic,
-                Subject=subject,
-                Message=message,
-                MessageAttributes={
-                    "user": {
-                        "DataType": "String",
-                        "StringValue": user
-                    }
-                }
-            )
-
-    def put_emf(self, context, user, locations):
-        counts = {
-            "cvs": 0,
-            "riteaid": 0
-        }
-        for location in locations:
-            if location["store"] == "CVS":
-                counts["cvs"] = len(location["availability_at"])
-            elif location["store"] == "RiteAid":
-                counts["riteaid"] = len(location["availability_at"])
-        message = {
-            "_aws": {
-                "Timestamp": int(datetime.now().timestamp()*1000),
-                "CloudWatchMetrics": [
-                    {
-                        "Namespace": "VaccineAvailability",
-                        "Dimensions": [["user"]],
-                        "Metrics": [
-                            {
-                                "Name": "cvs",
-                                "Unit": "Count"
-                            },
-                            {
-                                "Name": "riteaid",
-                                "Unit": "Count"
-                            }
-                        ]
-                    }
-                ]
-            },
-            "functionVersion": context.function_version,
-            "requestId": context.aws_request_id,
-            "user": user,
-            "cvs": counts["cvs"],
-            "riteaid": counts["riteaid"]
-        }
-        print(json.dumps(message))
-
     def put_user(self, user):
         payload = {
             "user": { "S": user }
@@ -141,11 +83,20 @@ class Availability:
         )
         return response
 
-    def set_notification_ttl(self, user, store, ts):
-        if user not in self.config["notification_ttl"]:
-            self.config["notification_ttl"][user] = {}
-        self.config["notification_ttl"][user][store] = ts.isoformat()
-        self.put_user(user)
+    # notifications
+    def send_sns(self, user, subject, message):
+        if "AWS_LAMBDA_FUNCTION_NAME" in os.environ:
+            self.client_sns.publish(
+                TopicArn=self.topic,
+                Subject=subject,
+                Message=message,
+                MessageAttributes={
+                    "user": {
+                        "DataType": "String",
+                        "StringValue": user
+                    }
+                }
+            )
 
     def notify(self, user, store, notifications):
         store = store.lower()
@@ -174,6 +125,23 @@ class Availability:
             "message": message
         }
         return output
+
+    # external api calls
+    def get_availability(self, url, headers):
+        request = urllib.request.Request(url)
+        request.add_header("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.192 Safari/537.36")
+        for header in headers:
+            request.add_header(header, headers[header])
+        try:
+            response = urllib.request.urlopen(request)
+        except urllib.error.HTTPError as e:
+            print(e)
+            sys.exit(1)
+
+        if response.status == 200:
+            return json.loads(response.read().decode('utf-8'))
+        else:
+            sys.exit(1)
 
     def check_cvs(self, user):
         locations = []
@@ -221,6 +189,45 @@ class Availability:
         response["availability"].append(self.check_cvs(user))
         response["availability"].append(self.check_riteaid(user))
         return response
+
+    # observability
+    def put_emf(self, context, user, locations):
+        counts = {
+            "cvs": 0,
+            "riteaid": 0
+        }
+        for location in locations:
+            if location["store"] == "CVS":
+                counts["cvs"] = len(location["availability_at"])
+            elif location["store"] == "RiteAid":
+                counts["riteaid"] = len(location["availability_at"])
+        message = {
+            "_aws": {
+                "Timestamp": int(datetime.now().timestamp()*1000),
+                "CloudWatchMetrics": [
+                    {
+                        "Namespace": "VaccineAvailability",
+                        "Dimensions": [["user"]],
+                        "Metrics": [
+                            {
+                                "Name": "cvs",
+                                "Unit": "Count"
+                            },
+                            {
+                                "Name": "riteaid",
+                                "Unit": "Count"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "functionVersion": context.function_version,
+            "requestId": context.aws_request_id,
+            "user": user,
+            "cvs": counts["cvs"],
+            "riteaid": counts["riteaid"]
+        }
+        print(json.dumps(message))
 
 def main():
     ap = argparse.ArgumentParser()
