@@ -6,27 +6,27 @@ import sys
 import urllib.request
 from datetime import datetime
 
-if "AWS_LAMBDA_FUNCTION_NAME" in os.environ:
-    topic = os.environ["TOPIC"]
-    table = os.environ["TABLE"]
-    client_sns = boto3.client("sns")
-    client_ddb = boto3.client("dynamodb")
-
 class Availability:
     def __init__(self, debug=False):
         self.debug = debug
         self.config = {
             "cvs": {},
             "riteaid": {},
-            "user_preferences": {}
+            "user_preferences": {},
+            "notification_ttl": {},
+            "ttl_in_seconds": 600
         }
+        self.topic = os.environ["TOPIC"]
+        self.table = os.environ["TABLE"]
+        self.client_sns = boto3.client("sns")
+        self.client_ddb = boto3.client("dynamodb")
 
     def set_config(self, config):
         self.config = config
 
     def pull_store(self, store):
-        response = client_ddb.get_item(
-            TableName=table,
+        response = self.client_ddb.get_item(
+            TableName=self.table,
             Key={
                 "user": {
                     "S": "_{}".format(store)
@@ -39,8 +39,8 @@ class Availability:
         }
 
     def pull_users(self):
-        response = client_ddb.scan(
-            TableName=table
+        response = self.client_ddb.scan(
+            TableName=self.table
         )["Items"]
         for item in response:
             user = item["user"]["S"]
@@ -48,6 +48,8 @@ class Availability:
                 if user not in self.config["user_preferences"]:
                     self.config["user_preferences"][user] = {}
                 self.config["user_preferences"][user] = json.loads(item["preferences"]["S"])
+                if user not in self.config["notification_ttl"]:
+                    self.config["notification_ttl"][user] = {}
 
     def pull_config(self):
         self.pull_store("cvs")
@@ -75,8 +77,8 @@ class Availability:
 
     def send_sns(self, user, subject, message):
         if "AWS_LAMBDA_FUNCTION_NAME" in os.environ:
-            client_sns.publish(
-                TopicArn=topic,
+            self.client_sns.publish(
+                TopicArn=self.topic,
                 Subject=subject,
                 Message=message,
                 MessageAttributes={
@@ -125,16 +127,53 @@ class Availability:
         }
         print(json.dumps(message))
 
-    def notify(self, user, notifications):
+    def put_user(self, user):
+        payload = {
+            "user": { "S": user }
+        }
+        if user in self.config["user_preferences"]:
+            payload["preferences"] = { "S": json.dumps(self.config["user_preferences"][user]) }
+        if user in self.config["notification_ttl"]:
+            payload["notification_ttl"] = { "S": json.dumps(self.config["notification_ttl"][user]) }
+        response = self.client_ddb.put_item(
+            TableName=self.table,
+            Item = payload
+        )
+        return response
+
+    def set_notification_ttl(self, user, store, ts):
+        if user not in self.config["notification_ttl"]:
+            self.config["notification_ttl"][user] = {}
+        self.config["notification_ttl"][user][store] = ts.isoformat()
+        self.put_user(user)
+
+    def notify(self, user, store, notifications):
+        store = store.lower()
         subject = "Vaccination availability alert"
-        if len(notifications["availability_at"]) == 0:
+        count = len(notifications["availability_at"])
+        if count == 0:
             message = "No vaccine availability at {}.".format(notifications["store"])
             # self.send_sns(user, subject, message)
         else:
             message = "\n".join(["Vaccine availability for {} at {}.".format(notifications["store"], location) for location in notifications["availability_at"]])
-            self.send_sns(user, subject, message)
+            ts_now = datetime.now()
+            if user in self.config["notification_ttl"] and store in self.config["notification_ttl"][user]:
+                ts_last = datetime.fromisoformat(self.config["notification_ttl"][user][store])
+                ts_diff = ts_now - ts_last
+                if ts_diff.total_seconds() > self.config["ttl_in_seconds"]:
+                    self.send_sns(user, subject, message)
+                    self.set_notification_ttl(user, store, ts_now)
+                else:
+                    count = 0
+            else:
+                self.send_sns(user, subject, message)
+                self.set_notification_ttl(user, store, ts_now)
         print(message)
-        return message
+        output = {
+            "count": count,
+            "message": message
+        }
+        return output
 
     def check_cvs(self, user):
         locations = []
@@ -151,7 +190,7 @@ class Availability:
             "store": "CVS",
             "availability_at": locations
         }
-        self.notify(user, output)
+        self.notify(user, "cvs", output)
         return output
 
     def check_riteaid(self, user):
@@ -171,7 +210,7 @@ class Availability:
             "store": "RiteAid",
             "availability_at": locations
         }
-        self.notify(user, output)
+        self.notify(user, "riteaid", output)
         return output
 
     def check_stores(self, user):
