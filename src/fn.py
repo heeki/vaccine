@@ -26,12 +26,12 @@ def initialization():
 # function: lambda invoker handler
 def handler(event, context):
     av = Availability()
+    av.logging = False
     av.pull_config()
-    payload = []
-    for user in av.get_users():
-        poll = av.check_stores(user)
-        av.put_emf(context, user, poll["availability"])
-        payload.append(poll)
-    return payload
+    av.check_stores()
+    output = av.check_users()
+    for o in output:
+        av.put_emf(context, o["user"], o["availability"])
+    return output
 
 initialization()

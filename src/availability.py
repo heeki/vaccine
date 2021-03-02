@@ -10,20 +10,33 @@ class Availability:
     def __init__(self, debug=False):
         self.debug = debug
         self.config = {
-            "cvs": {},
-            "riteaid": {},
             "user_preferences": {},
             "notification_ttl": {},
             "ttl_in_seconds": 600
         }
+        self.stores = ["cvs", "riteaid"]
+        for store in self.stores:
+            self.config[store] = {}
         if "TOPIC" in os.environ:
             self.topic = os.environ["TOPIC"]
         if "TABLE" in os.environ:
             self.table = os.environ["TABLE"]
         self.client_sns = boto3.client("sns")
         self.client_ddb = boto3.client("dynamodb")
+        self.data = {}
+        self.logging = True
 
     # internal data
+    def get_all_stores(self):
+        aggregate = {}
+        for user in self.get_users():
+            for store in self.stores:
+                for location in self.config["user_preferences"][user][store]:
+                    if store not in aggregate:
+                        aggregate[store] = {}
+                    aggregate[store][location] = self.config["user_preferences"][user][store][location]
+        return aggregate
+
     def get_users(self):
         return self.config["user_preferences"].keys()
 
@@ -103,10 +116,10 @@ class Availability:
         subject = "Vaccination availability alert"
         count = len(notifications["availability_at"])
         if count == 0:
-            message = "No vaccine availability at {}.".format(notifications["store"])
+            message = "No vaccine availability at {} for {}.".format(notifications["store"], user)
             # self.send_sns(user, subject, message)
         else:
-            message = "\n".join(["Vaccine availability for {} at {}.".format(notifications["store"], location) for location in notifications["availability_at"]])
+            message = "\n".join(["Vaccine availability at {} ({}) for {}.".format(notifications["store"], location, user) for location in notifications["availability_at"]])
             ts_now = datetime.now()
             if user in self.config["notification_ttl"] and store in self.config["notification_ttl"][user]:
                 ts_last = datetime.fromisoformat(self.config["notification_ttl"][user][store])
@@ -119,7 +132,8 @@ class Availability:
             else:
                 self.send_sns(user, subject, message)
                 self.set_notification_ttl(user, store, ts_now)
-        print(message)
+        if self.logging:
+            print(message)
         output = {
             "count": count,
             "message": message
@@ -145,10 +159,7 @@ class Availability:
 
     def check_cvs(self, user):
         locations = []
-        baseurl = self.config["cvs"]["url"]
-        headers = self.config["cvs"]["headers"]
-        response = self.get_availability(baseurl, headers)
-        for store in response["responsePayloadData"]["data"]["NJ"]:
+        for store in self.data["cvs"]["responsePayloadData"]["data"]["NJ"]:
             if (store["status"] != "Fully Booked"): 
                 locations.append(store["city"])
                 print("(CVS) Vaccine availability at {}".format(store["city"]))
@@ -162,33 +173,61 @@ class Availability:
         return output
 
     def check_riteaid(self, user):
-        locations = []
-        baseurl = self.config["riteaid"]["url"]
-        headers = self.config["riteaid"]["headers"]
-        for store in self.config["user_preferences"][user]["riteaid"]:
-            url = "{}{}".format(baseurl, store)
-            location = self.config["user_preferences"][user]["riteaid"][store]
-            response = self.get_availability(url, headers)
-            if (response["Data"]["slots"]["1"] or response["Data"]["slots"]["2"]):
-                locations.append(location)
+        availability = []
+        locations = self.config["user_preferences"][user]["riteaid"]
+        for location in locations:
+            if (self.data["riteaid"][location]["Data"]["slots"]["1"] or self.data["riteaid"][location]["Data"]["slots"]["2"]):
+                availability.append(location)
                 print("(RiteAid) Vaccine availability at {}".format(location))
             elif self.debug:
                 print("(RiteAid) No vaccine availability at {}".format(location))
         output = {
             "store": "RiteAid",
-            "availability_at": locations
+            "availability_at": availability
         }
         self.notify(user, "riteaid", output)
         return output
 
-    def check_stores(self, user):
-        response = {
+    def check_store(self, store, locations):
+        baseurl = self.config[store]["url"]
+        headers = self.config[store]["headers"]
+        if store == "cvs":
+            output = self.get_availability(baseurl, headers)
+        elif store == "riteaid":
+            output = {}
+            for location in locations:
+                url = "{}{}".format(baseurl, location)
+                response = self.get_availability(url, headers)
+                output[location] = response
+        return output
+
+    def check_stores(self):
+        aggregate = self.get_all_stores()
+        output = {}
+        for store in aggregate:
+            output[store] = self.check_store(store, aggregate[store])
+        self.data = output
+        return output
+
+    def check_user(self, user):
+        output = {
             "user": user,
             "availability": []
         }
-        response["availability"].append(self.check_cvs(user))
-        response["availability"].append(self.check_riteaid(user))
-        return response
+        for store in self.stores:
+            if store == "cvs":
+                output["availability"].append(self.check_cvs(user))
+            elif store == "riteaid":
+                output["availability"].append(self.check_riteaid(user))
+        return output
+
+    def check_users(self):
+        output = []
+        for user in self.get_users():
+            output.append(self.check_user(user))
+        if not self.logging:
+            print(json.dumps(output))
+        return output
 
     # observability
     def put_emf(self, context, user, locations):
@@ -228,11 +267,11 @@ class Availability:
             "riteaid": counts["riteaid"]
         }
         print(json.dumps(message))
+        return message
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True, help="path to application configurations")
-    ap.add_argument("--user", required=True, help="user from config.json")
     args = ap.parse_args()
 
     with open(args.config) as f:
@@ -240,10 +279,8 @@ def main():
 
     av = Availability()
     av.set_config(config)
-    for user in [args.user]:
-        print("Performing availability checks for {}.".format(user))
-        av.check_cvs(user)
-        av.check_riteaid(user)
+    av.check_stores()
+    av.check_users()
 
 if __name__ == "__main__":
     main()
