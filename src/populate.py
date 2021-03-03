@@ -9,13 +9,16 @@ class Store:
         self.client = boto3.client("dynamodb")
 
     def put_store(self, store):
+        payload = {
+            "user": { "S": "_{}".format(store) },
+            "url": { "S": self.config[store]["url"] },
+            "headers": { "S": json.dumps(self.config[store]["headers"]) }
+        }
+        if "data" in self.config[store]:
+            payload["data"] = { "S": json.dumps(self.config[store]["data"]) }
         response = self.client.put_item(
             TableName=self.table,
-            Item = {
-                "user": { "S": "_{}".format(store) },
-                "url": { "S": self.config[store]["url"] },
-                "headers": { "S": json.dumps(self.config[store]["headers"]) }
-            }
+            Item = payload
         )
         print(json.dumps(response))
         return response
@@ -42,8 +45,9 @@ def main():
         config = json.load(f)
     
     s = Store(config, args.table)
-    s.put_store("cvs")
-    s.put_store("riteaid")
+    stores = ["cvs", "riteaid", "walgreens"]
+    for store in stores:
+        s.put_store(store)
     for user in config["user_preferences"]:
         s.put_user(user)
 

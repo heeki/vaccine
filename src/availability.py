@@ -14,6 +14,7 @@ class Availability:
             "notification_ttl": {},
             "ttl_in_seconds": 600
         }
+        # self.stores = ["cvs", "riteaid", "walgreens"]
         self.stores = ["cvs", "riteaid"]
         for store in self.stores:
             self.config[store] = {}
@@ -59,10 +60,10 @@ class Availability:
                 }
             }
         )["Item"]
-        self.config[store] = {
-            "url": response["url"]["S"],
-            "headers": json.loads(response["headers"]["S"])
-        }
+        self.config[store]["url"] = response["url"]["S"]
+        self.config[store]["headers"] = json.loads(response["headers"]["S"])
+        if "data" in response:
+            self.config[store]["data"] = response["data"]["S"]
 
     def pull_users(self):
         response = self.client_ddb.scan(
@@ -78,8 +79,8 @@ class Availability:
                     self.config["notification_ttl"][user] = {}
 
     def pull_config(self):
-        self.pull_store("cvs")
-        self.pull_store("riteaid")
+        for store in self.stores:
+            self.pull_store(store)
         self.pull_users()
 
     def put_user(self, user):
@@ -141,52 +142,21 @@ class Availability:
         return output
 
     # external api calls
-    def get_availability(self, url, headers):
+    def get_availability(self, url, headers, data=None):
         request = urllib.request.Request(url)
         request.add_header("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.192 Safari/537.36")
         for header in headers:
             request.add_header(header, headers[header])
         try:
-            response = urllib.request.urlopen(request)
+            if data is None:
+                response = urllib.request.urlopen(request)
+            else:
+                response = urllib.request.urlopen(request, data=json.dumps(data).encode("utf-8"))
+            if response.status == 200:
+                return json.loads(response.read().decode('utf-8'))
         except urllib.error.HTTPError as e:
             print(e)
-            sys.exit(1)
-
-        if response.status == 200:
-            return json.loads(response.read().decode('utf-8'))
-        else:
-            sys.exit(1)
-
-    def check_cvs(self, user):
-        locations = []
-        for store in self.data["cvs"]["responsePayloadData"]["data"]["NJ"]:
-            if (store["status"] != "Fully Booked"): 
-                locations.append(store["city"])
-                print("(CVS) Vaccine availability at {}".format(store["city"]))
-            elif self.debug:
-                print("(CVS) No vaccine availability at {}".format(store["city"]))
-        output = {
-            "store": "CVS",
-            "availability_at": locations
-        }
-        self.notify(user, "cvs", output)
-        return output
-
-    def check_riteaid(self, user):
-        availability = []
-        locations = self.config["user_preferences"][user]["riteaid"]
-        for location in locations:
-            if (self.data["riteaid"][location]["Data"]["slots"]["1"] or self.data["riteaid"][location]["Data"]["slots"]["2"]):
-                availability.append(location)
-                print("(RiteAid) Vaccine availability at {}".format(location))
-            elif self.debug:
-                print("(RiteAid) No vaccine availability at {}".format(location))
-        output = {
-            "store": "RiteAid",
-            "availability_at": availability
-        }
-        self.notify(user, "riteaid", output)
-        return output
+        return {}
 
     def check_store(self, store, locations):
         baseurl = self.config[store]["url"]
@@ -199,6 +169,9 @@ class Availability:
                 url = "{}{}".format(baseurl, location)
                 response = self.get_availability(url, headers)
                 output[location] = response
+        elif store == "walgreens":
+            data = self.config[store]["data"]
+            output = self.get_availability(baseurl, headers, data)
         return output
 
     def check_stores(self):
@@ -215,10 +188,38 @@ class Availability:
             "availability": []
         }
         for store in self.stores:
+            result = {}
+            availability = []
             if store == "cvs":
-                output["availability"].append(self.check_cvs(user))
+                for slot in self.data["cvs"]["responsePayloadData"]["data"]["NJ"]:
+                    if (slot["status"] != "Fully Booked"):
+                        availability.append(store["city"])
+                        print("(CVS) Vaccine availability at {}".format(slot["city"]))
+                    elif self.debug:
+                        print("(CVS) No vaccine availability at {}".format(slot["city"]))
+                result = {
+                    "store": "CVS",
+                    "availability_at": availability
+                }
             elif store == "riteaid":
-                output["availability"].append(self.check_riteaid(user))
+                locations = self.config["user_preferences"][user]["riteaid"]
+                for location in locations:
+                    if (self.data["riteaid"][location]["Data"]["slots"]["1"] or self.data["riteaid"][location]["Data"]["slots"]["2"]):
+                        availability.append(location)
+                        print("(RiteAid) Vaccine availability at {}".format(location))
+                    elif self.debug:
+                        print("(RiteAid) No vaccine availability at {}".format(location))
+                result = {
+                    "store": "RiteAid",
+                    "availability_at": availability
+                }
+            elif store == "walgreens":
+                result = {
+                    "store": "Walgreens",
+                    "availability_at": availability
+                }
+            output["availability"].append(result)
+            self.notify(user, store, result)
         return output
 
     def check_users(self):
@@ -231,15 +232,9 @@ class Availability:
 
     # observability
     def put_emf(self, context, user, locations):
-        counts = {
-            "cvs": 0,
-            "riteaid": 0
-        }
+        counts = { store: 0 for store in self.stores}
         for location in locations:
-            if location["store"] == "CVS":
-                counts["cvs"] = len(location["availability_at"])
-            elif location["store"] == "RiteAid":
-                counts["riteaid"] = len(location["availability_at"])
+            counts[location["store"].lower()] = len(location["availability_at"])
         message = {
             "_aws": {
                 "Timestamp": int(datetime.now().timestamp()*1000),
@@ -247,25 +242,22 @@ class Availability:
                     {
                         "Namespace": "VaccineAvailability",
                         "Dimensions": [["user"]],
-                        "Metrics": [
-                            {
-                                "Name": "cvs",
-                                "Unit": "Count"
-                            },
-                            {
-                                "Name": "riteaid",
-                                "Unit": "Count"
-                            }
-                        ]
+                        "Metrics": []
                     }
                 ]
             },
             "functionVersion": context.function_version,
             "requestId": context.aws_request_id,
-            "user": user,
-            "cvs": counts["cvs"],
-            "riteaid": counts["riteaid"]
+            "user": user
         }
+        for store in self.stores:
+            metric = {
+                "Name": store,
+                "Unit": "Count"
+            }
+            message["_aws"]["CloudWatchMetrics"][0]["Metrics"].append(metric)
+        for store in counts:
+            message[store] = counts[store]
         print(json.dumps(message))
         return message
 
