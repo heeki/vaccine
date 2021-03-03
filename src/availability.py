@@ -74,10 +74,12 @@ class Availability:
             if not user.startswith("_"):
                 if user not in self.config["user_preferences"]:
                     self.config["user_preferences"][user] = {}
-                self.config["user_preferences"][user] = json.loads(item["preferences"]["S"])
+                if "preferences" in item:
+                    self.config["user_preferences"][user] = json.loads(item["preferences"]["S"])
                 if user not in self.config["notification_ttl"]:
                     self.config["notification_ttl"][user] = {}
-                self.config["notification_ttl"][user] = json.loads(item["notification_ttl"]["S"])
+                if "notification_ttl" in item:
+                    self.config["notification_ttl"][user] = json.loads(item["notification_ttl"]["S"])
             else:
                 value = item["user"]["S"]
                 store = value[1:len(value)]
@@ -126,7 +128,10 @@ class Availability:
             message = "No vaccine availability at {} for {}.".format(notifications["store"], user)
             # self.send_sns(user, subject, message)
         else:
-            message = "\n".join(["Vaccine availability at {} ({}) for {}.".format(notifications["store"], location, user) for location in notifications["availability_at"]])
+            aggregate = self.get_all_stores()
+            in_scope = list(filter(lambda x: x in self.config["user_preferences"][user][store].keys(), notifications["availability_at"]))
+            count = len(in_scope)
+            message = "\n".join(["Vaccine availability at {} ({}) for {}.".format(notifications["store"], aggregate[store][location], user) for location in in_scope])
             ts_now = datetime.now()
             if user in self.config["notification_ttl"] and store in self.config["notification_ttl"][user]:
                 ts_last = datetime.fromisoformat(self.config["notification_ttl"][user][store])

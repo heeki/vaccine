@@ -50,29 +50,14 @@ class TestAvailability(unittest.TestCase):
     def test_notify(self):
         actual = self.av.notify(self.user, self.store, self.notification)
         # expected = "\n".join(["Vaccine availability at {} ({}) for {}.".format(notifications["store"], location) for location in notifications["availability_at"]])
-        expected = """Vaccine availability at CVS (BROWNS MILLS) for heeki.
-Vaccine availability at CVS (ELIZABETH) for heeki.
-Vaccine availability at CVS (ENGLEWOOD) for heeki.
-Vaccine availability at CVS (EWING) for heeki.
-Vaccine availability at CVS (GIBBSBORO) for heeki.
-Vaccine availability at CVS (GLASSBORO) for heeki.
-Vaccine availability at CVS (LAWRENCEVILE) for heeki.
-Vaccine availability at CVS (LODI) for heeki.
-Vaccine availability at CVS (LONG BRANCH) for heeki.
-Vaccine availability at CVS (NORTH BRUNSWICK) for heeki.
-Vaccine availability at CVS (NORTH PLAINFIELD) for heeki.
-Vaccine availability at CVS (PENNSAUKEN) for heeki.
-Vaccine availability at CVS (PLAINSBORO) for heeki.
-Vaccine availability at CVS (TEANECK) for heeki.
-Vaccine availability at CVS (WEST ORANGE) for heeki.
-Vaccine availability at CVS (WILLINGBORO) for heeki."""
+        expected = "Vaccine availability at CVS (2257 Us Hwy 1, South North Brunswick, NJ 08902) for heeki."
         self.assertEqual(actual["message"], expected)
 
     def test_set_notification_ttl(self):
         ts_shift = datetime.now() - timedelta(minutes=30)
         self.av.set_notification_ttl(self.user, self.store, ts_shift)
         actual = self.av.notify(self.user, self.store, self.notification)
-        self.assertEqual(actual["count"], 16)
+        self.assertEqual(actual["count"], 1)
         ts_shift = datetime.now() - timedelta(minutes=5)
         self.av.set_notification_ttl(self.user, self.store, ts_shift)
         actual = self.av.notify(self.user, self.store, self.notification)
@@ -80,7 +65,12 @@ Vaccine availability at CVS (WILLINGBORO) for heeki."""
 
     def test_check_store(self):
         self.av.check_stores()
-        actual = self.av.check_users()
+        response = self.av.check_users()
+        included = ["heeki", "test"]
+        actual = []
+        for item in response:
+            if item["user"] in included:
+                actual.append(item)
         expected = [{"user": "heeki", "availability": [{"store": "CVS", "availability_at": []}, {"store": "RiteAid", "availability_at": []}]}, {"user": "test", "availability": [{"store": "CVS", "availability_at": []}, {"store": "RiteAid", "availability_at": []}]}]
         self.assertEqual(actual, expected)
 
