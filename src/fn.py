@@ -19,19 +19,16 @@ def build_response(code, body):
     }
     return response
 
-# function: initialization
-def initialization():
-    patch_all()
-
 # function: lambda invoker handler
 def handler(event, context):
-    av = Availability()
-    av.logging = False
-    av.pull_config()
     av.check_stores()
     output = av.check_users()
     for o in output:
         av.put_emf(context, o["user"], o["availability"])
     return output
 
-initialization()
+# function: initialization
+patch_all()
+av = Availability()
+av.logging = False
+av.pull_config()

@@ -16,6 +16,12 @@ class TestAvailability(unittest.TestCase):
     def setUpClass(cls):
         with open("etc/environment.json") as f:
             cls.config = json.load(f)
+        # os.environ["AWS_LAMBDA_FUNCTION_NAME"] = "test"
+        os.environ["TOPIC"] = cls.config["Fn"]["TOPIC"]
+        os.environ["TABLE"] = cls.config["Fn"]["TABLE"]
+        cls.av = Availability()
+        cls.av.logging = False
+        cls.av.pull_config()
         cls.user = "heeki"
         cls.store = "cvs"
         cls.notification = {
@@ -40,15 +46,9 @@ class TestAvailability(unittest.TestCase):
             ]
         }
         cls.context = Context()
-        # os.environ["AWS_LAMBDA_FUNCTION_NAME"] = "test"
-        os.environ["TOPIC"] = cls.config["Fn"]["TOPIC"]
-        os.environ["TABLE"] = cls.config["Fn"]["TABLE"]
 
     def test_notify(self):
-        av = Availability()
-        av.logging = False
-        av.pull_users()
-        actual = av.notify(self.user, self.store, self.notification)
+        actual = self.av.notify(self.user, self.store, self.notification)
         # expected = "\n".join(["Vaccine availability at {} ({}) for {}.".format(notifications["store"], location) for location in notifications["availability_at"]])
         expected = """Vaccine availability at CVS (BROWNS MILLS) for heeki.
 Vaccine availability at CVS (ELIZABETH) for heeki.
@@ -69,34 +69,26 @@ Vaccine availability at CVS (WILLINGBORO) for heeki."""
         self.assertEqual(actual["message"], expected)
 
     def test_set_notification_ttl(self):
-        av = Availability()
-        av.logging = False
-        av.pull_users()
         ts_shift = datetime.now() - timedelta(minutes=30)
-        av.set_notification_ttl(self.user, self.store, ts_shift)
-        actual = av.notify(self.user, self.store, self.notification)
+        self.av.set_notification_ttl(self.user, self.store, ts_shift)
+        actual = self.av.notify(self.user, self.store, self.notification)
         self.assertEqual(actual["count"], 16)
         ts_shift = datetime.now() - timedelta(minutes=5)
-        av.set_notification_ttl(self.user, self.store, ts_shift)
-        actual = av.notify(self.user, self.store, self.notification)
+        self.av.set_notification_ttl(self.user, self.store, ts_shift)
+        actual = self.av.notify(self.user, self.store, self.notification)
         self.assertEqual(actual["count"], 0)
 
     def test_check_store(self):
-        av = Availability()
-        av.logging = False
-        av.pull_config()
-        av.check_stores()
-        actual = av.check_users()
+        self.av.check_stores()
+        actual = self.av.check_users()
         expected = [{"user": "heeki", "availability": [{"store": "CVS", "availability_at": []}, {"store": "RiteAid", "availability_at": []}]}, {"user": "test", "availability": [{"store": "CVS", "availability_at": []}, {"store": "RiteAid", "availability_at": []}]}]
         self.assertEqual(actual, expected)
 
     def test_put_emf(self):
-        av = Availability()
-        av.logging = False
-        av.pull_config()
-        av.check_stores()
-        for item in av.check_users():
-            actual = av.put_emf(self.context, item["user"], item["availability"])
+        self.av.check_stores()
+        actual = self.av.check_users()
+        for item in actual:
+            actual = self.av.put_emf(self.context, item["user"], item["availability"])
             self.assertEqual("_aws" in actual, True)
 
 if __name__ == "__main__":

@@ -65,7 +65,7 @@ class Availability:
         if "data" in response:
             self.config[store]["data"] = response["data"]["S"]
 
-    def pull_users(self):
+    def pull_config(self):
         response = self.client_ddb.scan(
             TableName=self.table
         )["Items"]
@@ -77,11 +77,15 @@ class Availability:
                 self.config["user_preferences"][user] = json.loads(item["preferences"]["S"])
                 if user not in self.config["notification_ttl"]:
                     self.config["notification_ttl"][user] = {}
-
-    def pull_config(self):
-        for store in self.stores:
-            self.pull_store(store)
-        self.pull_users()
+            else:
+                value = item["user"]["S"]
+                store = value[1:len(value)]
+                if store not in self.config:
+                    self.config[store] = {}
+                self.config[store]["url"] = item["url"]["S"]
+                self.config[store]["headers"] = json.loads(item["headers"]["S"])
+                if "data" in item:
+                    self.config[store]["data"] = item["data"]["S"]
 
     def put_user(self, user):
         payload = {
