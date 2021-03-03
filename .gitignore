@@ -1,3 +1,4 @@
+.vscode/
 build/
 etc/config.json
 etc/environment.sh
