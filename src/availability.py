@@ -197,7 +197,7 @@ class Availability:
             if store == "cvs":
                 for slot in self.data["cvs"]["responsePayloadData"]["data"]["NJ"]:
                     if (slot["status"] != "Fully Booked"):
-                        availability.append(store["city"])
+                        availability.append(slot["city"])
                         print("(CVS) Vaccine availability at {}".format(slot["city"]))
                     elif self.debug:
                         print("(CVS) No vaccine availability at {}".format(slot["city"]))
