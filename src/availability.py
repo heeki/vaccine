@@ -77,6 +77,7 @@ class Availability:
                 self.config["user_preferences"][user] = json.loads(item["preferences"]["S"])
                 if user not in self.config["notification_ttl"]:
                     self.config["notification_ttl"][user] = {}
+                self.config["notification_ttl"][user] = json.loads(item["notification_ttl"]["S"])
             else:
                 value = item["user"]["S"]
                 store = value[1:len(value)]
@@ -95,6 +96,7 @@ class Availability:
             payload["preferences"] = { "S": json.dumps(self.config["user_preferences"][user]) }
         if user in self.config["notification_ttl"]:
             payload["notification_ttl"] = { "S": json.dumps(self.config["notification_ttl"][user]) }
+        print(json.dumps(payload))
         response = self.client_ddb.put_item(
             TableName=self.table,
             Item = payload
@@ -129,11 +131,20 @@ class Availability:
             if user in self.config["notification_ttl"] and store in self.config["notification_ttl"][user]:
                 ts_last = datetime.fromisoformat(self.config["notification_ttl"][user][store])
                 ts_diff = ts_now - ts_last
-                if ts_diff.total_seconds() > self.config["ttl_in_seconds"]:
+                if int(ts_diff.total_seconds()) > self.config["ttl_in_seconds"]:
                     self.send_sns(user, subject, message)
                     self.set_notification_ttl(user, store, ts_now)
                 else:
                     count = 0
+                debugging = {
+                    "notification_ttl": self.config["notification_ttl"][user][store],
+                    "ttl_in_seconds": self.config["ttl_in_seconds"],
+                    "ts_now": ts_now.isoformat(),
+                    "ts_last": ts_last.isoformat(),
+                    "ts_diff": int(ts_diff.total_seconds()),
+                    "count": count
+                }
+                print(json.dumps(debugging))
             else:
                 self.send_sns(user, subject, message)
                 self.set_notification_ttl(user, store, ts_now)
