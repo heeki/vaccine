@@ -132,27 +132,28 @@ class Availability:
             in_scope = list(filter(lambda x: x in self.config["user_preferences"][user][store].keys(), notifications["availability_at"]))
             count = len(in_scope)
             message = "\n".join(["Vaccine availability at {} ({}) for {}.".format(notifications["store"], aggregate[store][location], user) for location in in_scope])
-            ts_now = datetime.now()
-            if user in self.config["notification_ttl"] and store in self.config["notification_ttl"][user]:
-                ts_last = datetime.fromisoformat(self.config["notification_ttl"][user][store])
-                ts_diff = ts_now - ts_last
-                if int(ts_diff.total_seconds()) > self.config["ttl_in_seconds"]:
+            if count > 0:
+                ts_now = datetime.now()
+                if user in self.config["notification_ttl"] and store in self.config["notification_ttl"][user]:
+                    ts_last = datetime.fromisoformat(self.config["notification_ttl"][user][store])
+                    ts_diff = ts_now - ts_last
+                    if int(ts_diff.total_seconds()) > self.config["ttl_in_seconds"]:
+                        self.send_sns(user, subject, message)
+                        self.set_notification_ttl(user, store, ts_now)
+                    else:
+                        count = 0
+                    debugging = {
+                        "notification_ttl": self.config["notification_ttl"][user][store],
+                        "ttl_in_seconds": self.config["ttl_in_seconds"],
+                        "ts_now": ts_now.isoformat(),
+                        "ts_last": ts_last.isoformat(),
+                        "ts_diff": int(ts_diff.total_seconds()),
+                        "count": count
+                    }
+                    print(json.dumps(debugging))
+                else:
                     self.send_sns(user, subject, message)
                     self.set_notification_ttl(user, store, ts_now)
-                else:
-                    count = 0
-                debugging = {
-                    "notification_ttl": self.config["notification_ttl"][user][store],
-                    "ttl_in_seconds": self.config["ttl_in_seconds"],
-                    "ts_now": ts_now.isoformat(),
-                    "ts_last": ts_last.isoformat(),
-                    "ts_diff": int(ts_diff.total_seconds()),
-                    "count": count
-                }
-                print(json.dumps(debugging))
-            else:
-                self.send_sns(user, subject, message)
-                self.set_notification_ttl(user, store, ts_now)
         if self.logging:
             print(message)
         output = {
