@@ -10,14 +10,20 @@ class Store:
     def set_data(self, payload):
         self.data = payload
 
-    def set_preferences(self, payload):
-        self.preferences = payload
+    def set_preferences(self, payload, store):
+        for user in payload:
+            if user not in self.preferences:
+                self.preferences[user] = {}
+            self.preferences[user] = {k:v for (k,v) in payload[user][store].items()}
 
 class CVS(Store):
     def __init__(self, debug=False):
         super().__init__()
         self.name = "CVS"
         self.debug = debug
+
+    def set_preferences(self, payload):
+        return super().set_preferences(payload, "cvs")
 
     def check_availability(self, user):
         availability = []
@@ -27,7 +33,7 @@ class CVS(Store):
                 print("({}) Vaccine availability at {}".format(self.name, slot["city"]))
             elif self.debug:
                 print("({}}) No vaccine availability at {}".format(self.name, slot["city"]))
-        availability = list(filter(lambda x: x in self.preferences[user]["cvs"].keys(), availability))
+        availability = list(filter(lambda x: x in self.preferences[user].keys(), availability))
         result = {
             "store": self.name,
             "availability_at": availability
@@ -40,6 +46,9 @@ class RiteAid(Store):
         self.name = "RiteAid"
         self.debug = debug
 
+    def set_preferences(self, payload):
+        return super().set_preferences(payload, "riteaid")
+
     def check_availability(self, user, locations):
         availability = []
         for location in locations:
@@ -48,7 +57,7 @@ class RiteAid(Store):
                 print("({}}) Vaccine availability at {}".format(self.name, location))
             elif self.debug:
                 print("({}}) No vaccine availability at {}".format(self.name, location))
-        availability = list(filter(lambda x: x in self.preferences[user]["riteaid"].keys(), availability))
+        availability = list(filter(lambda x: x in self.preferences[user].keys(), availability))
         result = {
             "store": self.name,
             "availability_at": availability
@@ -61,9 +70,12 @@ class Walgreens(Store):
         self.name = "Walgreens"
         self.debug = debug
 
+    def set_preferences(self, payload):
+        return super().set_preferences(payload, "walgreens")
+
     def check_availability(self, user):
         availability = []
-        availability = list(filter(lambda x: x in self.preferences[user]["walgreens"].keys(), availability))
+        availability = list(filter(lambda x: x in self.preferences[user].keys(), availability))
         result = {
             "store": self.name,
             "availability_at": availability
