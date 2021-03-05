@@ -1,5 +1,5 @@
 import json
-from availability import Availability
+from lib.availability import Availability
 from aws_xray_sdk.core import xray_recorder
 from aws_xray_sdk.core import patch_all
 

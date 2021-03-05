@@ -5,6 +5,7 @@ import os
 import sys
 import urllib.request
 from datetime import datetime
+from lib.store import CVS, RiteAid, Walgreens
 
 class Availability:
     def __init__(self, debug=False):
@@ -219,29 +220,19 @@ class Availability:
             result = {}
             availability = []
             if store == "cvs":
-                for slot in self.data["cvs"]["responsePayloadData"]["data"]["NJ"]:
-                    if (slot["city"] in self.config["user_preferences"][user][store] and slot["status"] != "Fully Booked"):
-                        availability.append(slot["city"])
-                        print("(CVS) Vaccine availability at {}".format(slot["city"]))
-                    elif self.debug:
-                        print("(CVS) No vaccine availability at {}".format(slot["city"]))
-                result = {
-                    "store": "CVS",
-                    "availability_at": availability
-                }
+                s = CVS()
+                s.set_data(self.data["cvs"])
+                s.set_preferences(self.config["user_preferences"])
+                result = s.check_availability(user)
             elif store == "riteaid":
-                locations = self.config["user_preferences"][user]["riteaid"]
-                for location in locations:
-                    if (location in self.config["user_preferences"][user][store] and (self.data["riteaid"][location]["Data"]["slots"]["1"] or self.data["riteaid"][location]["Data"]["slots"]["2"])):
-                        availability.append(location)
-                        print("(RiteAid) Vaccine availability at {}".format(location))
-                    elif self.debug:
-                        print("(RiteAid) No vaccine availability at {}".format(location))
-                result = {
-                    "store": "RiteAid",
-                    "availability_at": availability
-                }
+                s = RiteAid()
+                s.set_data(self.data["riteaid"])
+                s.set_preferences(self.config["user_preferences"])
+                result = s.check_availability(user, self.config["user_preferences"][user]["riteaid"])
             elif store == "walgreens":
+                s = Walgreens()
+                s.set_data(self.data["walgreens"])
+                s.set_preferences(self.config["user_preferences"])
                 result = {
                     "store": "Walgreens",
                     "availability_at": availability

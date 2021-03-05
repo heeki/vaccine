@@ -1,6 +1,6 @@
 include etc/environment.sh
 
-sched: sam.build sam.deploy
+sched: sched.build sched.deploy
 sched.build:
 	sam build --profile ${PROFILE} --template ${SCHED_TEMPLATE} --parameter-overrides ${SCHED_PARAMS} --build-dir build --manifest requirements.txt --use-container
 	sam package -t build/template.yaml --output-template-file ${SCHED_OUTPUT} --s3-bucket ${S3BUCKET}
@@ -12,7 +12,7 @@ sched.invoke:
 	aws --profile ${PROFILE} lambda invoke --function-name ${SCHED_FN} --invocation-type RequestResponse --payload file://etc/event.json --cli-binary-format raw-in-base64-out --log-type Tail tmp/fn.json | jq "." > tmp/response.json
 	cat tmp/response.json | jq -r ".LogResult" | base64 --decode
 
-api: sam.package sam.deploy
+api: api.package api.deploy
 api.package:
 	sam package -t ${API_TEMPLATE} --output-template-file ${API_OUTPUT} --s3-bucket ${S3BUCKET}
 api.deploy:
