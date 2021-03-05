@@ -1,0 +1,65 @@
+openapi: 3.0.1
+info:
+  title: vaccine-api-admin
+  description: Vaccination administration
+  version: 0.1.0
+
+components:
+  securitySchemes:
+    vaccine-api-authorizer:
+      type: apiKey
+      name: Authorization
+      in: header
+      x-amazon-apigateway-authorizer:
+        authorizerPayloadFormatVersion:
+          Fn::Sub: '${payloadVersion}'
+        authorizerResultTtlInSeconds: 10
+        authorizerUri:
+          Fn::Sub: 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FnAuth.Arn}/invocations'
+        enableSimpleResponses:
+          Fn::Sub: '${enableSimple}'
+        identitySource: $request.header.Authorization
+        type: request
+
+paths:
+  /subscription:
+    get:
+      summary: subscription
+      description: returns list of subscription
+      responses:
+        200:
+          description: ok
+        default:
+          description: error
+      security:
+        - vaccine-api-authorizer: []
+      x-amazon-apigateway-integration:
+        httpMethod: POST
+        payloadFormatVersion:
+          Fn::Sub: '${payloadVersion}'
+        responses:
+          default:
+            statusCode: 200
+        type: AWS_PROXY
+        uri:
+          Fn::Sub: 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${Fn.Arn}/invocations'
+    post:
+      summary: subscription
+      description: create subscriptions
+      responses:
+        200:
+          description: ok
+        default:
+          description: error
+      security:
+        - vaccine-api-authorizer: []
+      x-amazon-apigateway-integration:
+        httpMethod: POST
+        payloadFormatVersion:
+          Fn::Sub: '${payloadVersion}'
+        responses:
+          default:
+            statusCode: 200
+        type: AWS_PROXY
+        uri:
+          Fn::Sub: 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${Fn.Arn}/invocations'
