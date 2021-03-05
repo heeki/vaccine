@@ -131,6 +131,13 @@ class Availability:
             aggregate = self.get_all_stores()
             in_scope = list(filter(lambda x: x in self.config["user_preferences"][user][store].keys(), notifications["availability_at"]))
             count = len(in_scope)
+            debugging = {
+                "user": user,
+                "store": store,
+                "notifications": json.dumps(notifications["availability_at"]),
+                "in_scope": json.dumps(in_scope)
+            }
+            print(json.dumps(debugging))
             message = "\n".join(["Vaccine availability at {} ({}) for {}.".format(notifications["store"], aggregate[store][location], user) for location in in_scope])
             if count > 0:
                 ts_now = datetime.now()
@@ -213,7 +220,7 @@ class Availability:
             availability = []
             if store == "cvs":
                 for slot in self.data["cvs"]["responsePayloadData"]["data"]["NJ"]:
-                    if (slot["status"] != "Fully Booked"):
+                    if (slot["city"] in self.config["user_preferences"][user][store] and slot["status"] != "Fully Booked"):
                         availability.append(slot["city"])
                         print("(CVS) Vaccine availability at {}".format(slot["city"]))
                     elif self.debug:
@@ -225,7 +232,7 @@ class Availability:
             elif store == "riteaid":
                 locations = self.config["user_preferences"][user]["riteaid"]
                 for location in locations:
-                    if (self.data["riteaid"][location]["Data"]["slots"]["1"] or self.data["riteaid"][location]["Data"]["slots"]["2"]):
+                    if (location in self.config["user_preferences"][user][store] and (self.data["riteaid"][location]["Data"]["slots"]["1"] or self.data["riteaid"][location]["Data"]["slots"]["2"])):
                         availability.append(location)
                         print("(RiteAid) Vaccine availability at {}".format(location))
                     elif self.debug:
