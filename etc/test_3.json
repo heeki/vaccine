@@ -1,0 +1,42 @@
+{
+    "cvs": {
+        "responsePayloadData": {
+            "currentTime": "2021-03-05T14:34:10.800",
+            "data": {
+                "NJ": [
+                    {
+                        "city": "HOWELL",
+                        "state": "NJ",
+                        "status": "Available"
+                    }
+                ]
+            }
+        }
+    },
+    "riteaid": {
+        "00599": {
+            "Data": {
+                "slots": {
+                    "1": "false",
+                    "2": "false"
+                }
+            },
+            "Status": "SUCCESS",
+            "ErrCde": "null",
+            "ErrMsg": "null",
+            "ErrMsgDtl": "null"
+        },
+        "07935": {
+            "Data": {
+                "slots": {
+                    "1": "false",
+                    "2": "false"
+                }
+            },
+            "Status": "SUCCESS",
+            "ErrCde": "null",
+            "ErrMsg": "null",
+            "ErrMsgDtl": "null"
+        }
+    }
+}

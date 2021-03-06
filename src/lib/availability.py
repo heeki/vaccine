@@ -43,11 +43,12 @@ class Availability:
     def set_config(self, config):
         self.config = config
 
-    def set_notification_ttl(self, user, store, ts):
+    def set_notification_ttl(self, user, store, ts, offline=False):
         if user not in self.config["notification_ttl"]:
             self.config["notification_ttl"][user] = {}
         self.config["notification_ttl"][user][store] = ts.isoformat()
-        self.put_user(user)
+        if not offline:
+            self.put_user(user)
 
     # data persistence
     def pull_store(self, store):

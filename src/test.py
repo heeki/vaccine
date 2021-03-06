@@ -24,48 +24,37 @@ class TestAvailability(unittest.TestCase):
         cls.av.pull_config()
         cls.user = "heeki"
         cls.store = "cvs"
-        cls.notification = {
-            "store": "CVS",
-            "availability_at": [
-                "BROWNS MILLS",
-                "ELIZABETH",
-                "ENGLEWOOD",
-                "EWING",
-                "GIBBSBORO",
-                "GLASSBORO",
-                "LAWRENCEVILE",
-                "LODI",
-                "LONG BRANCH",
-                "NORTH BRUNSWICK",
-                "NORTH PLAINFIELD",
-                "PENNSAUKEN",
-                "PLAINSBORO",
-                "TEANECK",
-                "WEST ORANGE",
-                "WILLINGBORO"
-            ]
-        }
+        cls.includes = range(5)
+        cls.events = []
+        for event in cls.includes:
+            with open("etc/test_{}.json".format(event)) as f:
+                cls.events.append(json.load(f))
         cls.context = Context()
 
     def test_notify(self):
-        actual = self.av.notify(self.user, self.store, self.notification)
-        # expected = "\n".join(["Vaccine availability at {} ({}) for {}.".format(notifications["store"], location) for location in notifications["availability_at"]])
+        actual = self.av.notify(self.user, self.store, self.events[0])
         expected = "Vaccine availability at CVS (2257 Us Hwy 1, South North Brunswick, NJ 08902) for heeki."
         self.assertEqual(actual["message"], expected)
+        self.av.data = self.events[2]
+        actual = self.av.check_user(self.user,)
+        self.assertTrue(len(actual["availability"][0]["availability_at"]) == 1)
+        self.av.data = self.events[3]
+        actual = self.av.check_user(self.user,)
+        self.assertTrue(len(actual["availability"][0]["availability_at"]) == 0)
 
     def test_set_notification_ttl(self):
         ts_shift = datetime.now() - timedelta(minutes=30)
-        self.av.set_notification_ttl(self.user, self.store, ts_shift)
-        actual = self.av.notify(self.user, self.store, self.notification)
+        self.av.set_notification_ttl(self.user, self.store, ts_shift, offline=True)
+        actual = self.av.notify(self.user, self.store, self.events[1])
         self.assertEqual(actual["count"], 1)
         ts_shift = datetime.now() - timedelta(minutes=5)
-        self.av.set_notification_ttl(self.user, self.store, ts_shift)
-        actual = self.av.notify(self.user, self.store, self.notification)
+        self.av.set_notification_ttl(self.user, self.store, ts_shift, offline=True)
+        actual = self.av.notify(self.user, self.store, self.events[1])
         self.assertEqual(actual["count"], 0)
 
     def test_check_store(self):
         self.av.check_stores()
-        response = self.av.check_users()
+        response = self.events[4]
         included = ["heeki", "test"]
         actual = []
         for item in response:
@@ -76,57 +65,12 @@ class TestAvailability(unittest.TestCase):
 
     def test_put_emf(self):
         self.av.check_stores()
-        actual = self.av.check_users()
+        actual = self.events[4]
         for item in actual:
             actual = self.av.put_emf(self.context, item["user"], item["availability"])
-            self.assertEqual("_aws" in actual, True)
-
-    def test_notify_edge_case(self):
-        self.av.data = {
-            "cvs": {
-                "responsePayloadData": {
-                    "currentTime": "2021-03-05T14:34:10.800",
-                    "data": {
-                        "NJ": [
-                            {
-                                "city": "HOWELL",
-                                "state": "NJ",
-                                "status": "Available"
-                            }
-                        ]
-                    }
-                }
-            },
-            "riteaid": {
-                "00599": {
-                    "Data": {
-                        "slots": {
-                            "1": False,
-                            "2": False
-                        }
-                    },
-                    "Status": "SUCCESS",
-                    "ErrCde": None,
-                    "ErrMsg": None,
-                    "ErrMsgDtl": None
-                },
-                "07935": {
-                    "Data": {
-                        "slots": {
-                            "1": False,
-                            "2": False
-                        }
-                    },
-                    "Status": "SUCCESS",
-                    "ErrCde": None,
-                    "ErrMsg": None,
-                    "ErrMsgDtl": None
-                }
-            }
-        }
-        user = "heeki"
-        actual = self.av.check_user(user)
-        self.assertTrue(len(actual["availability"][0]["availability_at"]) == 0)
+            self.assertEqual(len(actual["_aws"]["CloudWatchMetrics"][0]["Metrics"]), 2)
+            self.assertEqual(actual["cvs"], 0)
+            self.assertEqual(actual["riteaid"], 0)
 
 if __name__ == "__main__":
     # unittest.main()
@@ -135,6 +79,5 @@ if __name__ == "__main__":
     suite.addTest(TestAvailability('test_set_notification_ttl'))
     suite.addTest(TestAvailability('test_check_store'))
     suite.addTest(TestAvailability('test_put_emf'))
-    suite.addTest(TestAvailability('test_notify_edge_case'))
     runner = unittest.TextTestRunner(verbosity=2, buffer=True)
     runner.run(suite)

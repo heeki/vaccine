@@ -30,9 +30,6 @@ class CVS(Store):
         for slot in self.data["responsePayloadData"]["data"]["NJ"]:
             if (slot["status"] != "Fully Booked"):
                 availability.append(slot["city"])
-                print("({}) Vaccine availability at {}".format(self.name, slot["city"]))
-            elif self.debug:
-                print("({}}) No vaccine availability at {}".format(self.name, slot["city"]))
         availability = list(filter(lambda x: x in self.preferences[user].keys(), availability))
         result = {
             "store": self.name,
@@ -54,9 +51,6 @@ class RiteAid(Store):
         for location in locations:
             if (self.data[location]["Data"]["slots"]["1"] or self.data[location]["Data"]["slots"]["2"]):
                 availability.append(location)
-                print("({}}) Vaccine availability at {}".format(self.name, location))
-            elif self.debug:
-                print("({}}) No vaccine availability at {}".format(self.name, location))
         availability = list(filter(lambda x: x in self.preferences[user].keys(), availability))
         result = {
             "store": self.name,

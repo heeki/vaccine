@@ -1,0 +1,28 @@
+[
+    {
+      "user": "heeki",
+      "availability": [
+        {
+          "store": "CVS",
+          "availability_at": []
+        },
+        {
+          "store": "RiteAid",
+          "availability_at": []
+        }
+      ]
+    },
+    {
+      "user": "test",
+      "availability": [
+        {
+          "store": "CVS",
+          "availability_at": []
+        },
+        {
+          "store": "RiteAid",
+          "availability_at": []
+        }
+      ]
+    }
+  ]
