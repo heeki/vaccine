@@ -1,7 +1,8 @@
-import base64
-import boto3
 import json
 import os
+# from aws_xray_sdk.core import xray_recorder
+# from aws_xray_sdk.core import patch_all
+from lib.admin import Admin
 
 # helper functions
 def build_response(code, body):
@@ -21,8 +22,25 @@ def build_response(code, body):
 
 # function: lambda invoker handler
 def handler(event, context):
-    print(json.dumps(event))
-    payload = event
-    output = build_response(200, json.dumps(payload))
+    method = event["requestContext"]["http"]["method"]
+    user = "heeki"
+
+    if method == "GET":
+        response = a.get_items()
+        status = response["HTTPStatusCode"]
+        body = json.dumps(response["ResponseBody"])
+        output = build_response(status, body)
+
+    elif method == "POST":
+        response = a.put_user(user)
+        status = response["HTTPStatusCode"]
+        body = json.dumps(response["ResponseBody"])
+        output = build_response(status, body)
+
     print(output)
     return output
+
+# function: initialization
+# patch_all()
+table = os.environ["TABLE"]
+a = Admin(table)

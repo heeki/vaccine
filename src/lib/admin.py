@@ -3,12 +3,51 @@ import boto3
 import json
 from datetime import datetime, timedelta
 
-class Store:
-    def __init__(self, config, table):
+class Admin:
+    def __init__(self, table, config=None):
         self.config = config
         self.table = table
         self.client = boto3.client("dynamodb")
 
+    # general
+    def serde_user(self, item):
+        print(json.dumps(item))
+        output = {
+            "user": item["user"]["S"],
+            "notification_ttl": json.loads(item["notification_ttl"]["S"]),
+            "preferences": json.loads(item["preferences"]["S"])
+        }
+        return output
+
+    def get_item(self, user):
+        response = self.client.get_item(
+            TableName=self.table,
+            Key={
+                "user": { "S": user }
+            }
+        )
+        body = serde_user(response["Item"])
+        output = {
+            "HTTPStatusCode": response["ResponseMetadata"]["HTTPStatusCode"],
+            "ResponseBody": body
+        }
+        return output
+
+    def get_items(self):
+        response = self.client.scan(
+            TableName=self.table
+        )
+        body = []
+        for item in response["Items"]:
+            if not item["user"]["S"].startswith("_"):
+                body.append(self.serde_user(item))
+        output = {
+            "HTTPStatusCode": response["ResponseMetadata"]["HTTPStatusCode"],
+            "ResponseBody": body
+        }
+        return output
+
+    # store
     def put_store(self, store):
         payload = {
             "user": { "S": "_{}".format(store) },
@@ -23,7 +62,8 @@ class Store:
         )
         print(json.dumps(response))
         return response
-    
+
+    # user
     def put_user(self, user):
         payload = {
             "user": { "S": user },
@@ -51,12 +91,12 @@ def main():
     with open(args.config) as f:
         config = json.load(f)
     
-    s = Store(config, args.table)
+    a = Admin(args.table, config)
     stores = ["cvs", "riteaid", "walgreens"]
     for store in stores:
-        s.put_store(store)
+        a.put_store(store)
     for user in config["user_preferences"]:
-        s.put_user(user)
+        a.put_user(user)
 
 if __name__ == "__main__":
     main()

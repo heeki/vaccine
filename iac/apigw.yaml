@@ -122,6 +122,9 @@ Resources:
       CodeUri: ../src
       Handler: fn_admin.handler
       Role: !GetAtt FnExecRole.Arn
+      Environment:
+        Variables:
+          TABLE: !Select [ 1, !Split [ '/', !Ref adminTable ] ]
   FnLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
