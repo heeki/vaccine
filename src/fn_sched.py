@@ -1,7 +1,9 @@
+import asyncio
 import json
-from lib.availability import Availability
+import os
 from aws_xray_sdk.core import xray_recorder
 from aws_xray_sdk.core import patch_all
+from lib.availability import Availability
 
 # helper functions
 def build_response(code, body):
@@ -21,7 +23,8 @@ def build_response(code, body):
 
 # function: lambda invoker handler
 def handler(event, context):
-    av.check_stores()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(av.check_stores(parallel=parallel))
     output = av.check_users()
     for o in output:
         av.put_emf(context, o["user"], o["availability"])
@@ -32,3 +35,4 @@ patch_all()
 av = Availability()
 av.logging = False
 av.pull_config()
+parallel = "PARALLEL" in os.environ and os.environ["PARALLEL"] == "TRUE"

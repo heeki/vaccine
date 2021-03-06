@@ -4,11 +4,14 @@ Transform: AWS::Serverless-2016-10-31
 Globals:
   Function:
     Runtime: python3.8
+    MemorySize: 512
     Timeout: 10
 Parameters:
   emailAddress:
     Type: String
   isEnabled:
+    Type: String
+  isParallel:
     Type: String
 Resources:
   Notification:
@@ -112,6 +115,7 @@ Resources:
         Variables:
           TOPIC: !Ref Notification
           TABLE: !Ref Table
+          PARALLEL: !Ref isParallel
       Layers:
         - !Sub 'arn:aws:lambda:${AWS::Region}:580247275435:layer:LambdaInsightsExtension:14'
       Tracing: Active

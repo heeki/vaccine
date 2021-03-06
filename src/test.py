@@ -1,8 +1,10 @@
+import asyncio
 import json
 import os
 import unittest
-from lib.availability import Availability
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
+from lib.availability import Availability
 
 class Context:
     def __init__(self):
@@ -24,10 +26,10 @@ class TestAvailability(unittest.TestCase):
         cls.av.pull_config()
         cls.user = "heeki"
         cls.store = "cvs"
-        cls.includes = range(5)
+        cls.includes = range(6)
         cls.events = []
         for event in cls.includes:
-            with open("etc/test_{}.json".format(event)) as f:
+            with open("etc/tests/test_{}.json".format(event)) as f:
                 cls.events.append(json.load(f))
         cls.context = Context()
 
@@ -72,6 +74,32 @@ class TestAvailability(unittest.TestCase):
             self.assertEqual(actual["cvs"], 0)
             self.assertEqual(actual["riteaid"], 0)
 
+    def test_serial(self):
+        ts_start = datetime.now()
+        aggregate = self.av.get_all_stores()
+        riteaid = self.events[5]
+        store = "riteaid"
+        output = {}
+        for store in aggregate:
+            for location in aggregate[store]:
+                output[store] = self.av.check_store(store, location)
+        ts_end = datetime.now()
+        ts_diff = ts_end - ts_start
+        print("execution_time={}".format(ts_diff.total_seconds()))
+
+    def test_parallel(self):
+        ts_start = datetime.now()
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self.av.check_stores())
+        ts_end = datetime.now()
+        ts_diff = ts_end - ts_start
+        print("execution_time={}".format(ts_diff.total_seconds()))
+
+    def test_aggregate(self):
+        aggregate = self.av.get_all_stores()
+        tasks = [(store, location) for store in aggregate for location in aggregate[store]]
+        print(json.dumps(tasks))
+
 if __name__ == "__main__":
     # unittest.main()
     suite = unittest.TestSuite()
@@ -79,5 +107,8 @@ if __name__ == "__main__":
     suite.addTest(TestAvailability('test_set_notification_ttl'))
     suite.addTest(TestAvailability('test_check_store'))
     suite.addTest(TestAvailability('test_put_emf'))
+    suite.addTest(TestAvailability('test_serial'))
+    suite.addTest(TestAvailability('test_parallel'))
+    # suite.addTest(TestAvailability('test_aggregate'))
     runner = unittest.TextTestRunner(verbosity=2, buffer=True)
     runner.run(suite)

@@ -1,7 +1,9 @@
+import asyncio
 import boto3
 import json
 import os
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from lib.store import CVS, RiteAid, Walgreens
 
@@ -41,7 +43,13 @@ class Availability:
         return self.config["user_preferences"].keys()
 
     def set_config(self, config):
-        self.config = config
+        for store in self.stores:
+            if store in config:
+                self.config[store] = config[store]
+        for user in config["user_preferences"]:
+            self.config["user_preferences"][user] = config["user_preferences"][user]
+            self.config["notification_ttl"][user] = {}
+            self.config["ttl_in_seconds"] = config["user_preferences"][user]["ttl_in_seconds"]
 
     def set_notification_ttl(self, user, store, ts, offline=False):
         if user not in self.config["notification_ttl"]:
@@ -175,27 +183,53 @@ class Availability:
             print(e)
         return {}
 
-    def check_store(self, store, locations):
+    def check_store(self, store, location=None):
         baseurl = self.config[store]["url"]
         headers = self.config[store]["headers"]
+        output = {
+            "store": store,
+            "location": location
+        }
         if store == "cvs":
-            output = self.get_availability(baseurl, headers)
+            output["response"] = self.get_availability(baseurl, headers)
         elif store == "riteaid":
-            output = {}
-            for location in locations:
-                url = "{}{}".format(baseurl, location)
-                response = self.get_availability(url, headers)
-                output[location] = response
+            url = "{}{}".format(baseurl, location)
+            output["response"] = self.get_availability(url, headers)
         elif store == "walgreens":
             data = self.config[store]["data"]
-            output = self.get_availability(baseurl, headers, data)
+            output["response"] = self.get_availability(baseurl, headers, data)
         return output
 
-    def check_stores(self):
+    async def check_stores(self, parallel=True):
         aggregate = self.get_all_stores()
-        output = {}
-        for store in aggregate:
-            output[store] = self.check_store(store, aggregate[store])
+        output = {store:{} for store in self.stores}
+        if parallel:
+            responses = []
+            with ThreadPoolExecutor(max_workers=10) as ex:
+                loop = asyncio.get_event_loop()
+                tasks = [
+                    loop.run_in_executor(
+                        ex, self.check_store, *(store, location)
+                    ) for store in aggregate for location in aggregate[store]
+                ]
+                for response in await asyncio.gather(*tasks):
+                    responses.append(response)
+            for response in responses:
+                store = response["store"]
+                location = response["location"]
+                if store == "cvs":
+                    output[store] = response["response"]
+                elif store == "riteaid":
+                    output[store][location] = response["response"]
+        else:
+            for store in aggregate:
+                if store == "cvs":
+                    response = self.check_store(store)
+                    output[store] = response["response"]
+                elif store == "riteaid":
+                    for location in aggregate[store]:
+                        response = self.check_store(store, location)
+                        output[store][location] = response["response"]
         self.data = output
         return output
 

@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import json
 from lib.availability import Availability
 
@@ -12,7 +13,10 @@ def main():
 
     av = Availability()
     av.set_config(config)
-    av.check_stores()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(av.check_stores(parallel=False))
+    # output = loop.run_until_complete(av.check_stores())
+    # print(json.dumps(output))
     av.check_users()
 
 if __name__ == "__main__":
