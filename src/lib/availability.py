@@ -106,61 +106,50 @@ class Availability:
         return response
 
     # notifications
-    def send_sns(self, user, subject, message):
-        if "AWS_LAMBDA_FUNCTION_NAME" in os.environ:
-            self.client_sns.publish(
-                TopicArn=self.topic,
-                Subject=subject,
-                Message=message,
-                MessageAttributes={
-                    "user": {
-                        "DataType": "String",
-                        "StringValue": user
-                    }
-                }
-            )
-
-    def notify(self, user, store, notifications):
-        store = store.lower()
-        subject = "Vaccination availability alert"
-        count = len(notifications["availability_at"])
-        if count == 0:
-            message = "No vaccine availability at {} for {}.".format(notifications["store"], user)
-            # self.send_sns(user, subject, message)
-        else:
-            aggregate = self.get_all_stores()
-            in_scope = list(filter(lambda x: x in self.config["user_preferences"][user][store].keys(), notifications["availability_at"]))
-            count = len(in_scope)
-            debugging = {
-                "user": user,
-                "store": store,
-                "notifications": json.dumps(notifications["availability_at"]),
-                "in_scope": json.dumps(in_scope)
-            }
-            print(json.dumps(debugging))
-            message = "\n".join(["Vaccine availability at {} ({}) for {}.".format(notifications["store"], aggregate[store][location], user) for location in in_scope])
-            if count > 0:
-                ts_now = datetime.now()
-                if user in self.config["notification_ttl"] and store in self.config["notification_ttl"][user]:
-                    ts_last = datetime.fromisoformat(self.config["notification_ttl"][user][store])
-                    ts_diff = ts_now - ts_last
-                    if int(ts_diff.total_seconds()) > self.config["ttl_in_seconds"]:
-                        self.send_sns(user, subject, message)
-                        self.set_notification_ttl(user, store, ts_now)
-                    else:
-                        count = 0
+    def send_sns(self, user, store, subject, message):
+        output = True
+        if user in self.config["notification_ttl"] and store in self.config["notification_ttl"][user]:
+            ts_now = datetime.now()
+            ts_last = datetime.fromisoformat(self.config["notification_ttl"][user][store])
+            ts_diff = ts_now - ts_last
+            if int(ts_diff.total_seconds()) > self.config["ttl_in_seconds"]:
+                if "AWS_LAMBDA_FUNCTION_NAME" in os.environ:
                     debugging = {
                         "notification_ttl": self.config["notification_ttl"][user][store],
                         "ttl_in_seconds": self.config["ttl_in_seconds"],
                         "ts_now": ts_now.isoformat(),
                         "ts_last": ts_last.isoformat(),
-                        "ts_diff": int(ts_diff.total_seconds()),
-                        "count": count
+                        "ts_diff": int(ts_diff.total_seconds())
                     }
                     print(json.dumps(debugging))
-                else:
-                    self.send_sns(user, subject, message)
+                    self.client_sns.publish(
+                        TopicArn=self.topic,
+                        Subject=subject,
+                        Message=message,
+                        MessageAttributes={
+                            "user": {
+                                "DataType": "String",
+                                "StringValue": user
+                            }
+                        }
+                    )
                     self.set_notification_ttl(user, store, ts_now)
+            else:
+                output = False
+        return output
+
+    def notify(self, user, store, notifications):
+        store = store.lower()
+        subject = "Vaccination availability alert"
+        in_scope = list(filter(lambda x: x in self.config["user_preferences"][user][store].keys(), notifications["availability_at"]))
+        count = len(in_scope)
+        if count == 0:
+            message = "No vaccine availability at {} for {}.".format(notifications["store"], user)
+        else:
+            aggregate = self.get_all_stores()
+            message = "\n".join(["Vaccine availability at {} ({}) for {}.".format(notifications["store"], aggregate[store][location], user) for location in in_scope])
+            if not self.send_sns(user, store, subject, message):
+                count = 0
         if self.logging:
             print(message)
         output = {
@@ -232,10 +221,7 @@ class Availability:
                 s = Walgreens()
                 s.set_data(self.data["walgreens"])
                 s.set_preferences(self.config["user_preferences"])
-                result = {
-                    "store": "Walgreens",
-                    "availability_at": availability
-                }
+                result = s.check_availability(user)
             output["availability"].append(result)
             self.notify(user, store, result)
         return output

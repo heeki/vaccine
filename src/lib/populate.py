@@ -1,6 +1,7 @@
 import argparse
 import boto3
 import json
+from datetime import datetime, timedelta
 
 class Store:
     def __init__(self, config, table):
@@ -24,13 +25,19 @@ class Store:
         return response
     
     def put_user(self, user):
+        payload = {
+            "user": { "S": user },
+            "preferences": { "S": json.dumps(self.config["user_preferences"][user]) },
+            "notification_ttl": { "S": {} },
+            "ttl_in_seconds": { "N": str(self.config["user_preferences"][user]["ttl_in_seconds"]) }
+        }
+        stores = ["cvs", "riteaid"]
+        ts_now = datetime.now() - timedelta(minutes=60)
+        ts_now = ts_now.isoformat()
+        payload["notification_ttl"]["S"] = json.dumps({store:ts_now for store in stores})
         response = self.client.put_item(
             TableName=self.table,
-            Item = {
-                "user": { "S": user },
-                "preferences": { "S": json.dumps(self.config["user_preferences"][user]) },
-                "ttl_in_seconds": { "N": str(self.config["user_preferences"][user]["ttl_in_seconds"]) }
-            }
+            Item = payload
         )
         print(json.dumps(response))
         return response
