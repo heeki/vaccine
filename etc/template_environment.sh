@@ -6,7 +6,9 @@ SCHED_TEMPLATE=iac/lambda.yaml
 SCHED_OUTPUT=iac/lambda_output.yaml
 P_EMAIL="your_email@example.com"
 P_ISENABLED="ENABLED"
-SCHED_PARAMS="ParameterKey=emailAddress,ParameterValue=${P_EMAIL} ParameterKey=isEnabled,ParameterValue=${P_ISENABLED}"
+P_ISPARALLEL="FALSE"
+P_MEMORY=1024
+SCHED_PARAMS="ParameterKey=emailAddress,ParameterValue=${P_EMAIL} ParameterKey=isEnabled,ParameterValue=${P_ISENABLED} ParameterKey=isParallel,ParameterValue=${P_ISPARALLEL} ParameterKey=memory,ParameterValue=${P_MEMORY} "
 SCHED_FN=vaccine-lambda-Fn-XXXXXXXXXXXXX
 
 API_STACK=vaccine-api

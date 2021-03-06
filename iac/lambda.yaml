@@ -4,7 +4,7 @@ Transform: AWS::Serverless-2016-10-31
 Globals:
   Function:
     Runtime: python3.8
-    MemorySize: 512
+    MemorySize: !Ref memory
     Timeout: 10
 Parameters:
   emailAddress:
@@ -12,6 +12,8 @@ Parameters:
   isEnabled:
     Type: String
   isParallel:
+    Type: String
+  memory:
     Type: String
 Resources:
   Notification:
