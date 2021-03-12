@@ -49,7 +49,7 @@ class RiteAid(Store):
     def check_availability(self, user, locations):
         availability = []
         for location in locations:
-            if (self.data[location]["Data"]["slots"]["1"] or self.data[location]["Data"]["slots"]["2"]):
+            if self.data is not None and (self.data[location]["Data"]["slots"]["1"] or self.data[location]["Data"]["slots"]["2"]):
                 availability.append(location)
         availability = list(filter(lambda x: x in self.preferences[user].keys(), availability))
         result = {
