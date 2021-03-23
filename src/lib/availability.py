@@ -180,7 +180,12 @@ class Availability:
             if response.status == 200:
                 return json.loads(response.read().decode('utf-8'))
         except urllib.error.HTTPError as e:
-            print(e)
+            error = {
+                "code": e.code,
+                "reason": e.reason,
+                "url": url
+            }
+            print(json.dumps(error))
         return {}
 
     def check_store(self, store, location=None):
