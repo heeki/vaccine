@@ -50,8 +50,13 @@ class RiteAid(Store):
         availability = []
         for location in locations:
             try:
-                if self.data is not None and location in self.data and "Data" in self.data[location] and (self.data[location]["Data"]["slots"]["1"] or self.data[location]["Data"]["slots"]["2"]):
-                    availability.append(location)
+                # print(json.dumps(self.data))
+                if self.data is not None and location in self.data and "Data" in self.data[location]:
+                    has_availability = False
+                    for slot in self.data[location]["Data"]["slots"]:
+                        has_availability = has_availability and self.data[location]["Data"]["slots"][slot]
+                    if has_availability:
+                        availability.append(location)
             except TypeError as e:
                 print(e)
                 print(json.dumps(self.data))

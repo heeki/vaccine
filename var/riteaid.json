@@ -1,0 +1,122 @@
+{
+    "10413": {
+        "Data": {
+            "slots": {
+                "9": false,
+                "10": true,
+                "11": false,
+                "12": false,
+                "13": false
+            }
+        },
+        "Status": "SUCCESS",
+        "ErrCde": null,
+        "ErrMsg": null,
+        "ErrMsgDtl": null
+    },
+    "00599": {
+        "Data": {
+            "slots": {
+                "9": true,
+                "10": true,
+                "11": false,
+                "12": false,
+                "13": false
+            }
+        },
+        "Status": "SUCCESS",
+        "ErrCde": null,
+        "ErrMsg": null,
+        "ErrMsgDtl": null
+    },
+    "07935": {
+        "Data": {
+            "slots": {
+                "9": false,
+                "10": true,
+                "11": false,
+                "12": false,
+                "13": false
+            }
+        },
+        "Status": "SUCCESS",
+        "ErrCde": null,
+        "ErrMsg": null,
+        "ErrMsgDtl": null
+    },
+    "01360": {
+        "Data": {
+            "slots": {
+                "9": true,
+                "10": true,
+                "11": false,
+                "12": false,
+                "13": false
+            }
+        },
+        "Status": "SUCCESS",
+        "ErrCde": null,
+        "ErrMsg": null,
+        "ErrMsgDtl": null
+    },
+    "00238": {
+        "Data": {
+            "slots": {
+                "9": true,
+                "10": true,
+                "11": false,
+                "12": false,
+                "13": false
+            }
+        },
+        "Status": "SUCCESS",
+        "ErrCde": null,
+        "ErrMsg": null,
+        "ErrMsgDtl": null
+    },
+    "02463": {
+        "Data": {
+            "slots": {
+                "9": false,
+                "10": true,
+                "11": false,
+                "12": false,
+                "13": false
+            }
+        },
+        "Status": "SUCCESS",
+        "ErrCde": null,
+        "ErrMsg": null,
+        "ErrMsgDtl": null
+    },
+    "01970": {
+        "Data": {
+            "slots": {
+                "9": false,
+                "10": true,
+                "11": false,
+                "12": false,
+                "13": false
+            }
+        },
+        "Status": "SUCCESS",
+        "ErrCde": null,
+        "ErrMsg": null,
+        "ErrMsgDtl": null
+    },
+    "01736": {
+        "Data": {
+            "slots": {
+                "9": false,
+                "10": true,
+                "11": false,
+                "12": false,
+                "13": false
+            }
+        },
+        "Status": "SUCCESS",
+        "ErrCde": null,
+        "ErrMsg": null,
+        "ErrMsgDtl": null
+    }
+}

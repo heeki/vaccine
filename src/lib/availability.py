@@ -203,6 +203,7 @@ class Availability:
         elif store == "walgreens":
             data = self.config[store]["data"]
             output["response"] = self.get_availability(baseurl, headers, data)
+        # print(json.dumps(output))
         return output
 
     async def check_stores(self, parallel=True):
