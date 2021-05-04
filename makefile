@@ -1,9 +1,11 @@
 include etc/environment.sh
 
-sched: sched.build sched.deploy
+sched: sched.package sched.deploy
 sched.build:
 	sam build --profile ${PROFILE} --template ${SCHED_TEMPLATE} --parameter-overrides ${SCHED_PARAMS} --build-dir build --manifest requirements.txt --use-container
 	sam package -t build/template.yaml --output-template-file ${SCHED_OUTPUT} --s3-bucket ${S3BUCKET}
+sched.package:
+	sam package -t ${SCHED_TEMPLATE} --output-template-file ${SCHED_OUTPUT} --s3-bucket ${S3BUCKET}
 sched.deploy:
 	sam deploy -t ${SCHED_OUTPUT} --stack-name ${SCHED_STACK} --parameter-overrides ${SCHED_PARAMS} --capabilities CAPABILITY_NAMED_IAM
 sched.local.invoke:
